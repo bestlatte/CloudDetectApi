@@ -41,7 +41,7 @@ jobs:
       - run: pip install -r requirements-dev.txt
       - run: ruff check app tests
       - run: alembic upgrade head
-      - run: pytest --cov=app --cov-report=term-missing
+      - run: python -m pytest --cov=app --cov-report=term-missing
 
   frontend:
     runs-on: ubuntu-latest
