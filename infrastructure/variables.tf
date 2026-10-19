@@ -21,6 +21,12 @@ variable "container_image" {
   default     = "us-docker.pkg.dev/cloudrun/container/hello"
 }
 
+variable "commit_sha" {
+  description = "Commit identifier exposed by the deployed Web service. Keep it aligned with container_image."
+  type        = string
+  default     = "terraform-bootstrap"
+}
+
 variable "cloud_sql_connection_name" {
   description = "Existing Cloud SQL connection name (project:region:instance); leave blank during bootstrap."
   type        = string

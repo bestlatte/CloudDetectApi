@@ -43,7 +43,7 @@ resource "google_cloud_run_v2_service" "web" {
       }
       env {
         name  = "COMMIT_SHA"
-        value = "terraform-bootstrap"
+        value = var.commit_sha
       }
       dynamic "env" {
         for_each = var.public_base_url == "" ? [] : [var.public_base_url]
