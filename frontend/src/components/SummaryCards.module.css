@@ -1,0 +1,10 @@
+.grid { display: grid; min-width: 0; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; }
+.card { padding: 1.2rem; border: 1px solid var(--border); border-radius: 16px; background: var(--panel); box-shadow: var(--shadow); }
+.card span { display: block; color: var(--muted); font-size: 0.82rem; }
+.card strong { display: block; margin-top: 0.7rem; font-size: 2rem; line-height: 1; }
+.healthy { box-shadow: inset 0 3px #19a974, var(--shadow); }
+.danger { box-shadow: inset 0 3px #e35b68, var(--shadow); }
+.warning { box-shadow: inset 0 3px #e4a62b, var(--shadow); }
+.neutral { box-shadow: inset 0 3px #3783ef, var(--shadow); }
+@media (max-width: 780px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+

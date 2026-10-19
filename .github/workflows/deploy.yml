@@ -1,0 +1,59 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: cloudpulse-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
+      - uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@v3
+      - name: Configure registry
+        run: gcloud auth configure-docker "${{ vars.GCP_REGION }}-docker.pkg.dev" --quiet
+      - name: Build and push immutable image
+        run: |
+          IMAGE="${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/cloudpulse/cloudpulse:${DEPLOY_SHA}"
+          docker build --target production -t "$IMAGE" .
+          docker push "$IMAGE"
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+      - name: Update Web and Jobs
+        run: |
+          gcloud run services update cloudpulse-web --region "${{ vars.GCP_REGION }}" --image "$IMAGE" --update-env-vars "COMMIT_SHA=${DEPLOY_SHA}" --quiet
+          gcloud run jobs update cloudpulse-monitor --region "${{ vars.GCP_REGION }}" --image "$IMAGE" --quiet
+          gcloud run jobs update cloudpulse-initialize --region "${{ vars.GCP_REGION }}" --image "$IMAGE" --quiet
+      - name: Verify revision and smoke test
+        run: |
+          URL="$(gcloud run services describe cloudpulse-web --region "${{ vars.GCP_REGION }}" --format='value(status.url)')"
+          REVISION="$(gcloud run services describe cloudpulse-web --region "${{ vars.GCP_REGION }}" --format='value(status.latestReadyRevisionName)')"
+          WEB_IMAGE="$(gcloud run services describe cloudpulse-web --region "${{ vars.GCP_REGION }}" --format='value(spec.template.spec.containers[0].image)')"
+          JOB_IMAGE="$(gcloud run jobs describe cloudpulse-monitor --region "${{ vars.GCP_REGION }}" --format='value(spec.template.spec.template.spec.containers[0].image)')"
+          test -n "$REVISION"
+          test "$WEB_IMAGE" = "$IMAGE"
+          test "$JOB_IMAGE" = "$IMAGE"
+          HEALTH="$(curl --fail --retry 6 --retry-delay 5 "$URL/health")"
+          test "$(jq -r .commit_sha <<<"$HEALTH")" = "$DEPLOY_SHA"
+

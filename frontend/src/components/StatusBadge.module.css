@@ -1,0 +1,18 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  min-width: 5.5rem;
+  justify-content: center;
+  padding: 0.38rem 0.72rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+}
+
+.up { color: #087a51; background: #e9f8f1; }
+.down { color: #bd3344; background: #fff0f2; }
+.degraded { color: #956000; background: #fff7df; }
+.unknown { color: #607087; background: #f0f4f8; }
+
