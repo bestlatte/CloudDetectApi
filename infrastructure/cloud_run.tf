@@ -1,7 +1,16 @@
 locals {
   secret_environment = {
-    DATABASE_URL        = google_secret_manager_secret.database_url.secret_id
-    ADMIN_PASSWORD_HASH = google_secret_manager_secret.admin_password_hash.secret_id
+    DATABASE_URL = {
+      secret  = google_secret_manager_secret.database_url.secret_id
+      version = var.database_secret_version
+    }
+    ADMIN_PASSWORD_HASH = {
+      secret  = google_secret_manager_secret.admin_password_hash.secret_id
+      version = var.admin_password_secret_version
+    }
+  }
+  database_secret_environment = {
+    DATABASE_URL = local.secret_environment.DATABASE_URL
   }
 }
 
@@ -15,7 +24,6 @@ resource "google_cloud_run_v2_service" "web" {
     service_account = google_service_account.runtime.email
     timeout         = "60s"
     scaling {
-      min_instance_count = 0
       max_instance_count = 1
     }
     containers {
@@ -50,8 +58,8 @@ resource "google_cloud_run_v2_service" "web" {
           name = env.key
           value_source {
             secret_key_ref {
-              secret  = env.value
-              version = "latest"
+              secret  = env.value.secret
+              version = env.value.version
             }
           }
         }
@@ -76,7 +84,17 @@ resource "google_cloud_run_v2_service" "web" {
   }
 
   lifecycle {
-    ignore_changes = [template[0].containers[0].image]
+    ignore_changes = [
+      template[0].containers[0].image,
+      scaling,
+    ]
+
+    precondition {
+      condition = !var.attach_runtime_secrets || (
+        var.cloud_sql_connection_name != "" && var.public_base_url != ""
+      )
+      error_message = "Runtime secrets may only be attached after Cloud SQL and the HTTPS public_base_url are configured."
+    }
   }
   depends_on = [google_project_service.required]
 }
@@ -123,13 +141,13 @@ resource "google_cloud_run_v2_job" "monitor" {
           }
         }
         dynamic "env" {
-          for_each = var.attach_runtime_secrets ? { DATABASE_URL = google_secret_manager_secret.database_url.secret_id } : {}
+          for_each = var.attach_runtime_secrets ? local.database_secret_environment : {}
           content {
             name = env.key
             value_source {
               secret_key_ref {
-                secret  = env.value
-                version = "latest"
+                secret  = env.value.secret
+                version = env.value.version
               }
             }
           }
@@ -187,13 +205,13 @@ resource "google_cloud_run_v2_job" "initialize" {
           }
         }
         dynamic "env" {
-          for_each = var.attach_runtime_secrets ? { DATABASE_URL = google_secret_manager_secret.database_url.secret_id } : {}
+          for_each = var.attach_runtime_secrets ? local.database_secret_environment : {}
           content {
             name = env.key
             value_source {
               secret_key_ref {
-                secret  = env.value
-                version = "latest"
+                secret  = env.value.secret
+                version = env.value.version
               }
             }
           }

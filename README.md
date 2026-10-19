@@ -2,7 +2,7 @@
 
 CloudPulse 是一個以 React、FastAPI、PostgreSQL 與 GCP 組成的 API 健康監測平台。它同時監測 Frankfurter、GitHub、Open-Meteo、PokéAPI 四個真實公開來源與四個受控 Mock 端點，並刻意將 REAL／MOCK 統計分開，避免把示範故障誤認為正式服務異常。
 
-目前儲存庫包含完整 P0 原始碼、測試、容器、Terraform 與 GitHub Actions。**尚未執行任何 GCP `terraform apply`、Cloud SQL 建立、Secret 寫入、Migration 或正式部署。**
+目前儲存庫包含完整 P0 原始碼、測試、容器、Terraform 與 GitHub Actions。GCP Remote State、主要應用 Bootstrap 與 Cloud SQL Cutover 已完成；Cloud Run 目前仍使用公開測試 Image，尚未執行正式 Migration、部署 CloudPulse Image 或啟用排程。
 
 ## 功能
 
@@ -70,6 +70,12 @@ docker build --target production -t cloudpulse:local .
 docker run --rm -p 8080:8080 --env-file .env cloudpulse:local
 ```
 
+## Terraform
+
+Terraform 主設定位於 `infrastructure/`，已固定 GCP Project `clouddetctapi-demo`、Region `asia-east1` 與 GitHub Repository `bestlatte/CloudDetectApi`。另有 `infrastructure/bootstrap/` 專門建立受保護且具版本控制的 GCS Remote State Bucket。
+
+部署分成三個核准關卡：Remote State Bootstrap、主要資源 Bootstrap、Cloud SQL／Secret Cutover。請依 `docs/deployment.md` 操作；不要直接提交 `.tfvars`、Backend 實際設定或 State，也不要跳過 Plan 審查執行 Apply。
+
 ## 主要 API
 
 | Method | Route | 存取 |
@@ -91,10 +97,13 @@ docker run --rm -p 8080:8080 --env-file .env cloudpulse:local
 
 - GCP Project ID：`clouddetctapi-demo`
 - Region：`asia-east1`
-- Terraform 的 Scheduler 預設 `paused=true`，Runtime Secret 預設不掛載。
-- `infrastructure/example.tfvars` 只含示意 placeholder，不是可直接 apply 的秘密設定。
-- GitHub WIF 在 `github_repository` 空白時不建立；取得精確 `owner/repository` 後才啟用。
-- Cloud SQL、IAM、Secret、Migration、部署及任何付費動作都必須先審查並核准。
+- Terraform State：`gs://clouddetctapi-demo-cloudpulse-tfstate/cloudpulse/production/default.tfstate`
+- Cloud Run Bootstrap URL：`https://cloudpulse-web-nor3voukaq-de.a.run.app`（目前是 Hello Image，尚非 CloudPulse 網站）
+- 已建立 Artifact Registry、Runtime／Deploy／Scheduler Service Account、限定 `bestlatte/CloudDetectApi` main 分支的 WIF、兩個 Secret、Web、Monitor Job、Initialize Job 與保持暫停的 Scheduler。
+- Cloud Run Web、Monitor Job 與 Initialize Job 已掛載既有 Cloud SQL，並固定引用兩個 Secret Version 2；Terraform Cutover 後 Plan 為 `No changes`。
+- Terraform 的 Scheduler 維持 `paused=true`。目前仍是 Hello Image，因此尚未完成 FastAPI 實際資料庫連線與 Migration 驗證。
+- `infrastructure/example.tfvars` 只含安全的 Bootstrap 設定，不含 Secret 值。
+- Migration、CloudPulse Image 部署、手動 Job 與 Scheduler 啟用仍須分別審查並核准。
 
 詳見 [架構](docs/architecture.md)、[部署](docs/deployment.md)、[Demo 腳本](docs/demo-script.md)、[成本清理](docs/cost-and-cleanup.md) 與 [驗收紀錄](docs/acceptance-record.md)。
 

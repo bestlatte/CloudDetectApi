@@ -31,6 +31,17 @@ resource "google_cloud_scheduler_job" "monitor" {
     }
   }
 
+  lifecycle {
+    precondition {
+      condition = var.scheduler_paused || (
+        var.attach_runtime_secrets &&
+        var.cloud_sql_connection_name != "" &&
+        var.public_base_url != ""
+      )
+      error_message = "Scheduler cannot be enabled before Cloud SQL, runtime secrets and public_base_url are configured."
+    }
+  }
+
   depends_on = [google_cloud_run_v2_job_iam_member.scheduler_invoker]
 }
 

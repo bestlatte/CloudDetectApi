@@ -1,9 +1,11 @@
+# Backward-compatible example. Prefer bootstrap.tfvars.example for the first
+# apply and production.tfvars.example for the Cloud SQL cutover.
 project_id                = "clouddetctapi-demo"
 region                    = "asia-east1"
-container_image           = "asia-east1-docker.pkg.dev/clouddetctapi-demo/cloudpulse/cloudpulse:BOOTSTRAP_SHA"
-cloud_sql_connection_name = "clouddetctapi-demo:asia-east1:CLOUD_SQL_INSTANCE"
-public_base_url           = "https://cloudpulse-web-HASH-de.a.run.app"
-attach_runtime_secrets    = true
+container_image           = "us-docker.pkg.dev/cloudrun/container/hello"
+cloud_sql_connection_name = ""
+public_base_url           = ""
+attach_runtime_secrets    = false
 scheduler_paused          = true
-github_repository         = "OWNER/REPOSITORY"
+github_repository         = "bestlatte/CloudDetectApi"
 

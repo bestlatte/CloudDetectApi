@@ -1,0 +1,15 @@
+project_id                = "clouddetctapi-demo"
+region                    = "asia-east1"
+github_repository         = "bestlatte/CloudDetectApi"
+cloud_sql_connection_name = "clouddetctapi-demo:asia-east1:cloudpulse-pg"
+public_base_url           = "https://REPLACE_WITH_TERRAFORM_WEB_URL"
+attach_runtime_secrets    = true
+scheduler_paused          = true
+
+# Pin production environment-variable secrets to explicit versions.
+database_secret_version       = "1"
+admin_password_secret_version = "1"
+
+# CD owns the deployed SHA after bootstrap. This value is retained only so a
+# brand-new resource always has a valid image.
+container_image = "us-docker.pkg.dev/cloudrun/container/hello"

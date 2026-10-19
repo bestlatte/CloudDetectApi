@@ -1,0 +1,2 @@
+bucket = "clouddetctapi-demo-cloudpulse-tfstate"
+prefix = "cloudpulse/state-bootstrap"

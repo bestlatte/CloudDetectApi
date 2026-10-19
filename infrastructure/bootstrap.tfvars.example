@@ -1,0 +1,11 @@
+project_id                = "clouddetctapi-demo"
+region                    = "asia-east1"
+github_repository         = "bestlatte/CloudDetectApi"
+cloud_sql_connection_name = ""
+public_base_url           = ""
+attach_runtime_secrets    = false
+scheduler_paused          = true
+
+# The first apply uses a public bootstrap image. GitHub Actions replaces it
+# with an immutable CloudPulse image tagged with the commit SHA.
+container_image = "us-docker.pkg.dev/cloudrun/container/hello"

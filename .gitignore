@@ -15,10 +15,17 @@ frontend/dist/
 .DS_Store
 .idea/
 .vscode/
-infrastructure/.terraform/
-infrastructure/*.tfstate
-infrastructure/*.tfstate.*
+infrastructure/**/.terraform/
+infrastructure/**/*.tfstate
+infrastructure/**/*.tfstate.*
+infrastructure/*.tfplan
+infrastructure/**/*.tfplan
 infrastructure/*.tfvars
+infrastructure/**/*.tfvars
 !infrastructure/example.tfvars
+!infrastructure/*.tfvars.example
+infrastructure/backend.hcl
+infrastructure/bootstrap/backend.tf
+infrastructure/bootstrap/backend.hcl
 gha-creds-*.json
 
