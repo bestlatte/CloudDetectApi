@@ -18,6 +18,8 @@ flowchart TB
 
 Scheduler 只啟動 Job。Job 在短交易內以 `FOR UPDATE SKIP LOCKED` 選取 `next_check_at <= now()` 且沒有有效租約的目標，寫入 `claimed_execution_id` 和兩分鐘租約後才離開交易並發送 HTTP。
 
+MOCK 的 `next_check_at` 會對齊 Scheduler 的五分鐘刻度。例如 15:20:23 完成後，下一次排在 15:25:00，避免 15:25 的 Job 因幾秒之差略過目標。REAL 仍以實際完成時間計算 60 分鐘週期與 429 漸進退避，避免提早呼叫外部 API。
+
 結果只能由持有相同 Claim 的執行寫回；`check_results(execution_id, monitor_id)` 另有唯一鍵。同一個 Job 內最多四個請求並行，Cloud Run Job 本身固定單 Task、單 Parallelism。程序在寫回前中止時，租約到期後目標可被下一輪重新領取。
 
 ## 判定順序

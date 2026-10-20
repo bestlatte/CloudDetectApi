@@ -5,7 +5,7 @@ from sqlalchemy import func, select
 from app.db.models import CheckResult, Monitor
 from app.db.seed import seed_monitors
 from app.db.session import SessionLocal
-from app.services.monitor_engine import ProbeResult, claim_due_monitors, save_probe_result
+from app.services.monitor_engine import ProbeResult, _next_mock_check_at, claim_due_monitors, save_probe_result
 
 
 def seconds_between(later: datetime, earlier: datetime) -> int:
@@ -53,6 +53,35 @@ def test_expired_lease_is_recovered():
     claimed = claim_due_monitors("recovery-execution")
 
     assert [monitor.id for monitor in claimed] == [expected_id]
+
+
+def test_mock_next_check_is_aligned_to_scheduler_tick():
+    seed_monitors()
+    execution_id = "mock-schedule-alignment"
+    mock = next(
+        monitor for monitor in claim_due_monitors(execution_id) if monitor.target_key == "MOCK_HEALTHY"
+    )
+    checked_at = datetime(2026, 10, 20, 7, 20, 23, tzinfo=UTC)
+
+    assert save_probe_result(
+        execution_id,
+        mock.id,
+        ProbeResult(checked_at=checked_at, status="UP", http_status=200),
+    )
+
+    with SessionLocal() as db:
+        stored = db.get(Monitor, mock.id)
+        assert stored is not None
+        expected_next_check = datetime(2026, 10, 20, 7, 25, tzinfo=UTC)
+        assert seconds_between(stored.next_check_at, expected_next_check) == 0
+
+
+def test_mock_schedule_alignment_handles_extended_interval_and_day_boundary():
+    checked_at = datetime(2026, 10, 20, 7, 20, 23, tzinfo=UTC)
+    assert _next_mock_check_at(checked_at, 10) == datetime(2026, 10, 20, 7, 30, tzinfo=UTC)
+
+    before_midnight = datetime(2026, 10, 20, 23, 58, 12, tzinfo=UTC)
+    assert _next_mock_check_at(before_midnight, 5) == datetime(2026, 10, 21, 0, 0, tzinfo=UTC)
 
 
 def test_rate_limit_backoff_and_successful_recovery():

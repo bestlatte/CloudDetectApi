@@ -18,6 +18,8 @@ from app.templates import get_target_template
 
 logger = logging.getLogger("cloudpulse.monitor")
 
+SCHEDULER_TICK_MINUTES = 5
+
 
 @dataclass(frozen=True)
 class ProbeResult:
@@ -29,6 +31,15 @@ class ProbeResult:
     error_summary: str | None = None
     source_data_date: date | None = None
     data_warning: str | None = None
+
+
+def _next_mock_check_at(checked_at: datetime, interval_minutes: int) -> datetime:
+    """Keep Mock checks on the five-minute Cloud Scheduler cadence."""
+    checked_at_utc = checked_at.replace(tzinfo=UTC) if checked_at.tzinfo is None else checked_at.astimezone(UTC)
+    current_tick = checked_at_utc.replace(second=0, microsecond=0) - timedelta(
+        minutes=checked_at_utc.minute % SCHEDULER_TICK_MINUTES
+    )
+    return current_tick + timedelta(minutes=interval_minutes)
 
 
 def _safe_error(reason_code: str, summary: str, *, latency_ms: int | None = None) -> ProbeResult:
@@ -156,7 +167,10 @@ def save_probe_result(execution_id: str, monitor_id, result: ProbeResult) -> boo
         else:
             monitor.rate_limit_streak = 0
             delay_minutes = monitor.check_interval_minutes
-        monitor.next_check_at = result.checked_at + timedelta(minutes=delay_minutes)
+        if monitor.source_kind == "MOCK":
+            monitor.next_check_at = _next_mock_check_at(result.checked_at, delay_minutes)
+        else:
+            monitor.next_check_at = result.checked_at + timedelta(minutes=delay_minutes)
         monitor.lease_expires_at = None
         monitor.claimed_execution_id = None
         db.flush()
