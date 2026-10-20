@@ -1,10 +1,35 @@
-.grid { display: grid; min-width: 0; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; }
-.card { padding: 1.2rem; border: 1px solid var(--border); border-radius: 16px; background: var(--panel); box-shadow: var(--shadow); }
-.card span { display: block; color: var(--muted); font-size: 0.82rem; }
-.card strong { display: block; margin-top: 0.7rem; font-size: 2rem; line-height: 1; }
-.healthy { box-shadow: inset 0 3px #19a974, var(--shadow); }
-.danger { box-shadow: inset 0 3px #e35b68, var(--shadow); }
-.warning { box-shadow: inset 0 3px #e4a62b, var(--shadow); }
-.neutral { box-shadow: inset 0 3px #3783ef, var(--shadow); }
-@media (max-width: 780px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+.summary { overflow: hidden; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+.summaryHead { min-height: 54px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--rule); }
+.summaryHead div { display: flex; align-items: baseline; gap: 10px; }
+.summaryHead span, .summaryHead small { color: var(--muted); font-size: 12px; }
+.summaryHead strong { font-size: 15px; font-weight: 600; }
+.metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.metric { min-width: 0; padding: 18px 16px; border-right: 1px solid var(--rule); }
+.metric:last-child { border-right: 0; }
+.metric span { display: block; color: var(--muted); font-size: 12px; }
+.metric strong { display: block; margin-top: 8px; font-size: 28px; font-weight: 400; line-height: 1; font-variant-numeric: tabular-nums; }
+.healthy strong { color: var(--positive); }
+.danger strong { color: var(--negative); }
+.warning strong { color: var(--warning); }
+.neutral strong { color: var(--muted); }
+.mockBand { min-height: 58px; padding: 11px 16px; display: flex; align-items: center; justify-content: space-between; gap: 20px; border-top: 1px solid var(--border); background: var(--raised); }
+.mockBand > div span, .mockBand > div strong { display: block; }
+.mockBand > div span { color: var(--muted); font-size: 11px; }
+.mockBand > div strong { margin-top: 2px; font-size: 14px; font-weight: 600; }
+.mockBand dl { margin: 0; display: flex; gap: 22px; }
+.mockBand dl div { display: flex; align-items: baseline; gap: 6px; }
+.mockBand dt { color: var(--muted); font-size: 11px; }
+.mockBand dd { margin: 0; font-size: 13px; font-variant-numeric: tabular-nums; }
 
+@media (max-width: 700px) {
+  .summaryHead { align-items: flex-start; }
+  .summaryHead div { display: block; }
+  .summaryHead strong { display: block; margin-top: 2px; }
+  .metrics { grid-template-columns: repeat(2, 1fr); }
+  .metric:nth-child(2) { border-right: 0; }
+  .metric:nth-child(-n + 2) { border-bottom: 1px solid var(--rule); }
+  .mockBand { align-items: flex-start; flex-direction: column; }
+  .mockBand dl { width: 100%; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .mockBand dl div { display: block; }
+  .mockBand dd { margin-top: 2px; }
+}

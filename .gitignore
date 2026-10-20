@@ -28,4 +28,5 @@ infrastructure/backend.hcl
 infrastructure/bootstrap/backend.tf
 infrastructure/bootstrap/backend.hcl
 gha-creds-*.json
+.taste-skill/
 

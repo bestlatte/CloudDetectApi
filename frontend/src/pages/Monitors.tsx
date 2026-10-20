@@ -81,17 +81,20 @@ export function Monitors() {
   if (loading) return <div className={styles.state}>正在確認管理員狀態…</div>
 
   if (!session.authenticated) return (
-    <div className={styles.narrow}><p className={styles.eyebrow}>ADMIN ACCESS</p><h1>監測設定</h1><p className={styles.lead}>公開環境只提供讀取。登入管理員後才能修改核准的八個監測模板。</p>
+    <div className={styles.narrow}><p className={styles.contextLine}>管理員專區</p><h1>監測設定</h1><p className={styles.lead}>公開環境只提供讀取。登入管理員後才能修改核准的八個監測模板。</p>
       <form className={styles.login} onSubmit={login}><label>管理員密碼<input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} /></label><button>登入</button>{message && <p className={styles.notice}>{message}</p>}</form>
     </div>
   )
 
   return (
     <div className={styles.stack}>
-      <header className={styles.sectionHead}><div><p className={styles.eyebrow}>APPROVED TARGETS</p><h1>監測設定</h1></div><button className={styles.quietButton} onClick={() => void api.logout().then(load)}>登出</button></header>
-      <form className={styles.createBar} onSubmit={create}><label>由核准模板新增<select value={targetKey} onChange={(event) => setTargetKey(event.target.value)}>{templates.map(([key, label]) => <option value={key} key={key}>{label}</option>)}</select></label><button>新增／還原</button></form>
+      <header className={styles.sectionHead}><div><p className={styles.contextLine}>核准目標</p><h1>監測設定</h1><p className={styles.lead}>管理八個固定模板；目標網址與驗證方式由系統鎖定。</p></div><button className={styles.quietButton} onClick={() => void api.logout().then(load)}>登出</button></header>
+      <section className={styles.settingsSection}>
+        <div className={styles.settingCopy}><h2>新增監測目標</h2><p>只能從核准模板建立；已移除的模板會還原原紀錄。</p></div>
+        <form className={styles.createBar} onSubmit={create}><label>核准模板<select value={targetKey} onChange={(event) => setTargetKey(event.target.value)}>{templates.map(([key, label]) => <option value={key} key={key}>{label}</option>)}</select></label><button>新增／還原</button></form>
+      </section>
       {message && <p className={styles.notice}>{message}</p>}
-      <section className={styles.editorGrid}>{monitors.map((monitor) => <Editor key={monitor.id} monitor={monitor} onChanged={load} />)}{!monitors.length && <div className={styles.state}>尚無監測目標，請由核准模板新增。</div>}</section>
+      <section><div className={styles.sectionTitle}><h2>目前監測設定</h2><p>{monitors.length} 個已建立目標</p></div><div className={styles.editorGrid}>{monitors.map((monitor) => <Editor key={monitor.id} monitor={monitor} onChanged={load} />)}{!monitors.length && <div className={styles.state}>尚無監測目標，請由核准模板新增。</div>}</div></section>
     </div>
   )
 }
