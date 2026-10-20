@@ -5,7 +5,8 @@ from sqlalchemy import func, select
 from app.db.models import CheckResult, Monitor
 from app.db.seed import seed_monitors
 from app.db.session import SessionLocal
-from app.services.monitor_engine import ProbeResult, _next_mock_check_at, claim_due_monitors, save_probe_result
+from app.jobs.monitor_runtime import claim_due_monitors, save_probe_result
+from app.services.monitor_engine import ProbeResult, _next_mock_check_at
 
 
 def seconds_between(later: datetime, earlier: datetime) -> int:

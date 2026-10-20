@@ -8,6 +8,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api import auth, checks, monitors, overview
+from app.api.error_handlers import register_service_error_handlers
 from app.core.config import get_settings
 from app.demo import mock_api
 
@@ -18,6 +19,7 @@ app = FastAPI(
     docs_url="/docs" if settings.environment != "production" else None,
     redoc_url=None,
 )
+register_service_error_handlers(app)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.origin_list,

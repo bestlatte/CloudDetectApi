@@ -70,6 +70,17 @@ docker build --target production -t cloudpulse:local .
 docker run --rm -p 8080:8080 --env-file .env cloudpulse:local
 ```
 
+## 後端分層
+
+後端採用類似 Java 的 `Controller → Service → DAO/Repository → Database`：
+
+- `backend/app/api/`：Controller，只處理 HTTP 輸入、輸出與 Cookie。
+- `backend/app/services/`：Service，集中商業規則與使用案例。
+- `backend/app/repositories/`：DAO/Repository，集中 SQLAlchemy 查詢與持久化。
+- `backend/app/db/`：ORM Model、Session 與 PostgreSQL 連線。
+
+FastAPI 透過 `backend/app/dependencies.py` 組裝 request-scoped Service；分層規則由 AST 測試守門。完整責任與 Monitor Job 的 `Claim → Probe → Save` 交易邊界請見 [架構文件](docs/architecture.md)。
+
 ## Terraform
 
 Terraform 主設定位於 `infrastructure/`，已固定 GCP Project `clouddetctapi-demo`、Region `asia-east1` 與 GitHub Repository `bestlatte/CloudDetectApi`。另有 `infrastructure/bootstrap/` 專門建立受保護且具版本控制的 GCS Remote State Bucket。

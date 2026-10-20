@@ -4,42 +4,30 @@ import asyncio
 import logging
 import time
 import uuid
-from dataclasses import dataclass
-from datetime import UTC, date, datetime, timedelta
+from collections.abc import Callable
+from datetime import UTC, datetime
 
 import httpx
-from sqlalchemy import or_, select
 
 from app.core.config import get_settings
-from app.db.models import CheckResult, Monitor
-from app.db.session import SessionLocal
+from app.db.models import Monitor
+from app.services.monitor_execution_service import (
+    ProbeResult,
+    next_mock_check_at,
+)
 from app.services.validators import ValidationOutcome, validate_http_payload
 from app.templates import get_target_template
 
 logger = logging.getLogger("cloudpulse.monitor")
 
-SCHEDULER_TICK_MINUTES = 5
-
-
-@dataclass(frozen=True)
-class ProbeResult:
-    checked_at: datetime
-    status: str
-    http_status: int | None = None
-    latency_ms: int | None = None
-    reason_code: str | None = None
-    error_summary: str | None = None
-    source_data_date: date | None = None
-    data_warning: str | None = None
+ClaimDueMonitors = Callable[[str], list[Monitor]]
+SaveProbeResult = Callable[[str, uuid.UUID, ProbeResult], bool]
 
 
 def _next_mock_check_at(checked_at: datetime, interval_minutes: int) -> datetime:
-    """Keep Mock checks on the five-minute Cloud Scheduler cadence."""
-    checked_at_utc = checked_at.replace(tzinfo=UTC) if checked_at.tzinfo is None else checked_at.astimezone(UTC)
-    current_tick = checked_at_utc.replace(second=0, microsecond=0) - timedelta(
-        minutes=checked_at_utc.minute % SCHEDULER_TICK_MINUTES
-    )
-    return current_tick + timedelta(minutes=interval_minutes)
+    """Backward-compatible public helper for scheduler-aligned Mock checks."""
+
+    return next_mock_check_at(checked_at, interval_minutes)
 
 
 def _safe_error(reason_code: str, summary: str, *, latency_ms: int | None = None) -> ProbeResult:
@@ -117,70 +105,15 @@ async def probe_monitor(monitor: Monitor, client: httpx.AsyncClient) -> ProbeRes
         return _safe_error("CONNECTION_ERROR", "The target connection failed.", latency_ms=latency_ms)
 
 
-def claim_due_monitors(execution_id: str) -> list[Monitor]:
-    settings = get_settings()
-    now = datetime.now(UTC)
-    with SessionLocal.begin() as db:
-        monitors = list(
-            db.scalars(
-                select(Monitor)
-                .where(
-                    Monitor.enabled.is_(True),
-                    Monitor.deleted_at.is_(None),
-                    or_(Monitor.next_check_at.is_(None), Monitor.next_check_at <= now),
-                    or_(Monitor.lease_expires_at.is_(None), Monitor.lease_expires_at <= now),
-                )
-                .order_by(Monitor.next_check_at.asc().nullsfirst())
-                .with_for_update(skip_locked=True)
-            )
-        )
-        for monitor in monitors:
-            monitor.claimed_execution_id = execution_id
-            monitor.lease_expires_at = now + timedelta(seconds=settings.monitor_lease_seconds)
-        return monitors
-
-
-def save_probe_result(execution_id: str, monitor_id, result: ProbeResult) -> bool:
-    with SessionLocal.begin() as db:
-        monitor = db.scalar(select(Monitor).where(Monitor.id == monitor_id).with_for_update())
-        if monitor is None or monitor.claimed_execution_id != execution_id:
-            logger.warning("Discarding result for an expired claim", extra={"monitor_id": str(monitor_id)})
-            return False
-        db.add(
-            CheckResult(
-                monitor_id=monitor.id,
-                checked_at=result.checked_at,
-                status=result.status,
-                http_status=result.http_status,
-                latency_ms=result.latency_ms,
-                reason_code=result.reason_code,
-                error_summary=result.error_summary,
-                source_data_date=result.source_data_date,
-                data_warning=result.data_warning,
-                execution_id=execution_id,
-            )
-        )
-        monitor.last_checked_at = result.checked_at
-        if monitor.source_kind == "REAL" and result.reason_code == "RATE_LIMITED":
-            monitor.rate_limit_streak += 1
-            delay_minutes = min(60 * (2**monitor.rate_limit_streak), 24 * 60)
-        else:
-            monitor.rate_limit_streak = 0
-            delay_minutes = monitor.check_interval_minutes
-        if monitor.source_kind == "MOCK":
-            monitor.next_check_at = _next_mock_check_at(result.checked_at, delay_minutes)
-        else:
-            monitor.next_check_at = result.checked_at + timedelta(minutes=delay_minutes)
-        monitor.lease_expires_at = None
-        monitor.claimed_execution_id = None
-        db.flush()
-        return True
-
-
-async def execute_due_monitors(execution_id: str | None = None) -> dict[str, int | str]:
+async def execute_due_monitors(
+    execution_id: str | None = None,
+    *,
+    claim_due: ClaimDueMonitors,
+    save_result: SaveProbeResult,
+) -> dict[str, int | str]:
     settings = get_settings()
     current_execution_id = execution_id or str(uuid.uuid4())
-    monitors = claim_due_monitors(current_execution_id)
+    monitors = claim_due(current_execution_id)
     semaphore = asyncio.Semaphore(settings.max_monitor_concurrency)
     timeout = httpx.Timeout(settings.request_timeout_seconds)
 
@@ -194,7 +127,7 @@ async def execute_due_monitors(execution_id: str | None = None) -> dict[str, int
     saved = 0
     failed = 0
     for monitor, result in results:
-        if save_probe_result(current_execution_id, monitor.id, result):
+        if save_result(current_execution_id, monitor.id, result):
             saved += 1
         if result.status == "DOWN":
             failed += 1
